@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:oauth="http://www.mulesoft.org/schema/mule/oauth" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/oauth http://www.mulesoft.org/schema/mule/oauth/current/mule-oauth.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+	<flow name="triggeredAccessTokenFlow" doc:id="90a3093c-8b39-4454-a502-be87e68fa612" >
+		<http:request method="GET" doc:name="getAccessToken" doc:id="f2f0f97a-fa6e-4c9b-a8ff-1f1519d8199e" config-ref="HTTP_Request_conf_oauth" path="/">
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Cache-Control" : "no-store",
+	"Content-Type" : "application/json",
+	"Pragma" : "no-cache"
+}]]]></http:headers>
+		</http:request>
+	</flow>
+	<flow name="callbackFlow" doc:id="f2550d3d-0517-4dc6-840c-5c033e4e0bf4">
+		<http:listener doc:name="callback listener" doc:id="2661aea0-efa7-436a-88a8-aec743989c10" path="/callback" config-ref="HTTP_Listener_callback888" />
+		<ee:transform doc:name="set code variable" doc:id="5b65aa82-fd41-4a4b-93c0-e0b23c0d893f">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="code"><![CDATA[%dw 2.0
+output application/json
+var code = attributes.headers.referer
+---
+  attributes.queryParams.code default (( (code splitBy "code=")[1] ) splitBy("&scope=") default "")[0]]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<flow-ref doc:name="getAccessTokenFlow" doc:id="0fbeb402-2292-47d2-a677-d576073f40aa" name="getAccessTokenFlow" />
+	</flow>
+<!-- 	<flow name="favicon.icoFlow" doc:id="4cbcf37b-a537-460b-b89c-acf394a11d20" initialState="stopped">
+		<http:listener doc:name="favicon.ico listener for browsers" doc:id="92f203c0-3b9e-4e3a-84b1-1a3ae0dce807" config-ref="HTTP_Listener_callback888" path="/favicon.ico" />
+		<logger level="DEBUG" doc:name="DEBUG flow name" doc:id="7cb2db3a-1d1a-4732-a3fa-c7ce3ac53f2e" message="this is favicon.ico" />
+		<flow-ref doc:name="setCodeFromAttributesFlow" doc:id="56ea5328-84f4-49cf-a4a0-b948498184d3" name="setCodeFromAttributesFlow" />
+		<flow-ref doc:name="getAccessTokenFlow" doc:id="3da2ced8-fd33-4184-8b4e-9cdb807398c1" name="getAccessTokenFlow" />
+	</flow> -->
+	<flow name="getAccessTokenFlow" doc:id="96319a15-aeb4-4f25-abb7-ea351eb4724b">
+		<logger level="DEBUG" doc:name="DEBUG flow name" doc:id="f64b8cae-371c-4432-b7b2-6dcb7015af51" message="this is getAccessTokenFlow" />
+		<http:request method="POST" doc:name="getAccessToken" doc:id="e673fd52-c896-4323-bd54-9499b625d0dc" config-ref="HTTP_Request_conf_refreshToken" path="/token">
+			<http:body><![CDATA[#[%dw 2.0
+output application/x-www-form-urlencoded
+---
+{
+	client_id: p('oauth2.client_id'),
+	client_secret: p('secure::oauth2.client_secret'),
+	code: vars.code,
+	grant_type: "authorization_code",
+	redirect_uri: p('oauth2.redirect_uri')
+}]]]></http:body>
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Cache-Control" : "keep-alive",
+	"Host" : "oauth2.googleapis.com",
+	"Content-Type" : "application/x-www-form-urlencoded",
+	"Connection" : "keep-alive"
+}]]]></http:headers>
+		</http:request>
+		<os:store doc:name="Store access_token" doc:id="865b4612-b076-4b74-8beb-f48863d89bb3" key="access_token">
+			<os:value ><![CDATA[#[%dw 2.0
+output application/json
+---
+payload.access_token]]]></os:value>
+		</os:store>
+		<os:store doc:name="Store expires_in" doc:id="549b4f78-0d33-4c5a-bdcf-d960c15d5593" key="expires_in">
+			<os:value ><![CDATA[#[%dw 2.0
+output application/json
+---
+payload.expires_in]]]></os:value>
+		</os:store>
+		<!-- <os:store doc:name="Store expiresInSeconds" doc:id="6b097d12-dc04-4b44-a20b-fc6d2d211c20" key="expiresInSeconds">
+			<os:value ><![CDATA[#[%dw 2.0
+output application/json
+-&#45;&#45;
+payload.expires_in]]]></os:value>
+		</os:store> -->
+		<logger level="DEBUG" doc:name="DEBUG log out payload" doc:id="f893da4e-3a77-4555-ac42-cb30879b2380" message='This is payload from getAccessTokenFlow: #[payload]' />
+	</flow>
+	<flow name="getRefreshedTokenFlow" doc:id="aa555340-1b4d-4c0f-8a8b-90dc58162620" >
+		<scheduler doc:name="schedule for refreshed token" doc:id="3d35b36f-3c1d-47d1-aad0-46647850cdc6">
+			<scheduling-strategy>
+				<fixed-frequency frequency="600" startDelay="100" timeUnit="SECONDS" />
+			</scheduling-strategy>
+		</scheduler>
+		<logger level="DEBUG" doc:name="DEBUG flow name" doc:id="ee5ce8d7-5093-4a4e-94fe-7bfbba56a08e" message="this is getRefreshTokenFlow" />
+		<os:retrieve doc:name="Retrieve access_token" doc:id="5ac7943c-7f30-4c9d-b12a-b85c29372e7b" key="access_token" target="access_token" />
+		<logger level="INFO" doc:name="log out access_token" doc:id="844b1cd1-b9a9-4a8d-a2ad-6114ec66a691" message="access_token is: #[vars.access_token]"/>
+		<!-- <ee:transform doc:name="set timeBeforeRequest &amp; pay variables" doc:id="8be49fce-64b2-43db-bd23-96682902b582" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="timeBeforeRequest" ><![CDATA[output application/json
+-&#45;&#45;
+now().seconds as Number {unit: "seconds"}]]></ee:set-variable>
+				<ee:set-variable variableName="pay" ><![CDATA[%dw 2.0
+output application/java
+-&#45;&#45;
+payload]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform> -->
+		<http:request method="POST" doc:name="getAccessToken" doc:id="effe39c4-ff0e-443f-a6ad-43d71ca69751" config-ref="HTTP_Request_conf_refreshToken" path="/token" >
+			<http:body ><![CDATA[#[%dw 2.0
+output application/x-www-form-urlencoded
+---
+{
+	client_id: p('oauth2.client_id'),
+	client_secret: p('secure::oauth2.client_secret'),
+	grant_type: "refresh_token",
+	refresh_token: vars.access_token
+}]]]></http:body>
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"Cache-Control" : "keep-alive",
+	"Host" : "oauth2.googleapis.com",
+	"Content-Type" : "application/x-www-form-urlencoded",
+	"Connection" : "keep-alive"
+}]]]></http:headers>
+		</http:request>
+		<os:store doc:name="Update access_token" doc:id="21c2ecd4-9bdc-4a76-bd88-e532abf3e1eb" key="access_token">
+			<os:value><![CDATA[#[%dw 2.0
+output application/json
+---
+payload.access_token]]]></os:value>
+		</os:store>
+		<!-- <os:store doc:name="Update expires_in" doc:id="62255a4a-29d6-4cd4-9306-68304d33efc6" key="expires_in">
+			<os:value ><![CDATA[#[%dw 2.0
+output application/json
+-&#45;&#45;
+payload.expires_in]]]></os:value>
+		</os:store> -->
+		<!-- <os:store doc:name="Update expiresInSeconds" doc:id="76fe156b-1fc1-4006-86bb-7dc0671ff4d6" key="expiresInSeconds">
+			<os:value ><![CDATA[#[( payload.expires_in - 120 ) + vars.timeBeforeRequest]]]></os:value>
+		</os:store> -->
+		<!-- <set-payload value="#[vars.pay]" doc:name="Set Payload" doc:id="048cf885-3c35-432b-9b17-b77181ebcb16" /> -->
+	</flow>
+</mule>

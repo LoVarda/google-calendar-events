@@ -1,0 +1,9 @@
+# API Configuration
+# API Configuration
+oauth2:
+ redirect_uri: "http://localhost:888/callback"
+ client_id: "86834387238-krt562f3s0m2gaprfsds1tieh5cs6pd9.apps.googleusercontent.com"
+ client_secret: "![9xhDHxVG38MroIu/5esL3hds2k8f2T76zYfItpvo1Qk=]"
+    
+calendarData:
+ calendarId: "corebase-calendar@avenga.com"

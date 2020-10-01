@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:oauth="http://www.mulesoft.org/schema/mule/oauth"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/oauth http://www.mulesoft.org/schema/mule/oauth/current/mule-oauth.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+	<!-- <flow name="retrieveAccessToken4eventsFlow" doc:id="44b83ca4-be37-4f1c-8c09-2db83c6fed65" initialState="stopped">
+		<os:retrieve doc:name="Retrieve expiresInSeconds" doc:id="3d481840-140d-46c2-9fa4-ce8eb8939b66" key="expiresInSeconds" target="expiresInSeconds"/>
+		<logger level="DEBUG" doc:name="DEBUG log out expiresInSeconds and now data" doc:id="9ce7ce3d-b002-4eac-aa55-6165047b7d37" message='#["expiresInSeconds is: " ++ vars.expiresInSeconds ++ " now is: " ++ now().seconds]'/>
+		<choice doc:name="check expiration condition" doc:id="b320ed81-0495-4c0c-a6ce-e96e975a05bb" >
+			<when expression="#[( now().seconds - vars.expiresInSeconds as Number ) &gt; 0]">
+				<flow-ref doc:name="getRefreshedTokenFlow" doc:id="982284eb-9869-4241-bea6-625622095f3a" name="getRefreshedTokenFlow" />
+			</when>
+		</choice>
+		<os:retrieve doc:name="Retrieve access_token_4events" doc:id="6adfa062-adb9-49b6-a696-3212ef888473" key="access_token" target="access_token" targetValue='#["Bearer " ++ payload]' />
+		<logger level="DEBUG" doc:name="DEBUG log out access_token" doc:id="89176ada-c8b5-48c3-8ed3-d6db814a637d" message="this is access_token value: #[vars.access_token]" />
+	</flow> -->
+	<flow name="eventsFlow" doc:id="4e9cd9a6-a06c-4126-bf54-5b736ebe562e" >
+		<http:listener doc:name="events" doc:id="c8bcbf28-046a-428f-9655-560802d09c25" config-ref="HTTP_Listener_local_callback_8888" path="/events" />
+		<choice doc:name="Choice" doc:id="6d841d3d-ce52-4d3c-9c0f-a36a742a06a6" >
+			<when expression='#[payload.status == "create"]'>
+				<flow-ref doc:name="events.create" doc:id="14c5462f-34e3-47eb-b1ca-58ace55ffffb" name="events.create"/>
+			</when>
+			<when expression='#[payload.status == "update"]'>
+				<os:retrieve doc:name="Retrieve eventId" doc:id="7f7ac3fa-f8f5-42c5-9dd3-f8a45fe300d8" key="#[payload.id]" target="eventId" targetValue="#[%dw 2.0
+output application/json
+---
+payload]"/>
+				<validation:is-not-null doc:name="eventId" doc:id="fc5655e1-dddb-43b0-ba9c-30a8fbf99734" message="eventId is null" value="#[vars.eventId]"/>
+				<flow-ref doc:name="events.getById" doc:id="54d7dc24-bb9d-4386-9a18-8dfa4d7544ea" name="events.getById" target="responsePayload"/>
+				<flow-ref doc:name="events.update" doc:id="2a379661-c751-4fc4-bcef-35af19a08176" name="events.update"/>
+			</when>
+			<when expression='#[payload.status == "delete"]'>
+				<set-variable value="#[payload.id]" doc:name="Set externalID number" doc:id="ca0ff342-4622-4d80-b41e-7af6e3736ae6" variableName="externalID" />
+				<os:retrieve doc:name="Retrieve eventId" doc:id="d269d60f-e47d-48e2-b389-9a49074d823b" key="#[payload.id]" target="eventId" targetValue="#[%dw 2.0
+output application/json
+---
+payload]"/>
+				<validation:is-not-null doc:name="eventId" doc:id="f0ca7db1-5328-47d8-ba87-11139e39979e" value="#[vars.eventId]" message="eventId is null"/>
+				<flow-ref doc:name="events.delete" doc:id="32394d11-a057-4d39-958c-f21942f1185a" name="events.delete"/>
+			</when>
+			<when expression='#[payload.status == "list"]'>
+				<flow-ref doc:name="events.list" doc:id="3a4818b9-7344-4a51-a1a4-545d85a19895" name="events.list"/>
+			</when>
+			<when expression='#[payload.status == "getById"]'>
+				<os:retrieve doc:name="Retrieve eventId" doc:id="9b357b09-ed95-4212-a59f-73c61c8d0521" key="#[payload.id]" target="Retrieve eventId" targetValue="#[%dw 2.0
+output application/json
+---
+payload]"/>
+				<flow-ref doc:name="getById" doc:id="975c8432-7259-45bb-bfe7-04ea844fddaf" name="events.getById"/>
+			</when>
+			<otherwise >
+				<logger level="ERROR" doc:name="log out status" doc:id="9cd914f4-4b91-4e06-af6c-f509b823fa9f" message="This status does not supported #[payload.status]"/>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="retrieveToken" doc:id="b41217e1-5dfb-4ebc-8ba5-18bd4a6cffa4" >
+		<os:retrieve doc:name="Retrieve access_token" doc:id="58637c42-06f5-4ca6-ba3b-177768543e96" key="access_token" target="access_token" targetValue='#["Bearer " ++ payload]' />
+	</flow>
+	<flow name="events.list" doc:id="4f3df354-90c9-41cc-90bf-48b89390da17" >
+		<http:listener doc:name="events.getList" doc:id="3ffdff3e-0022-4c4c-9045-a64c026f1c88" config-ref="HTTP_Listener_local_callback_8888" path="/events.getList"/>
+		<flow-ref doc:name="retrieveToken" doc:id="80ffc0cf-dc16-44b9-b059-fd79af5a5c2d" name="retrieveToken"/>
+		<http:request method="GET" doc:name="getListOfEvents" doc:id="187d2ddb-3209-4f0f-8dfc-78c7a3e0352d" config-ref="HTTP_Request_conf_googleapis" path="/${calendarData.calendarId}/events">
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"Cache-Control" : "no-cache",
+	"Authorization" : vars.access_token,
+	"Host" : "www.googleapis.com",
+	"Connection" : "keep-alive"
+}]]]></http:headers>
+		</http:request>
+	</flow>
+	<flow name="events.getById" doc:id="766df662-3da3-4cb3-b2f1-ccb47fe84ff4" >
+		<http:listener doc:name="events.getById" doc:id="85fd5670-4bd0-48b8-9ad2-1046144515f9" config-ref="HTTP_Listener_local_callback_8888" path="/events.getById"/>
+		<flow-ref doc:name="retrieveToken" doc:id="f29de25b-c34b-4740-9e6c-03c0fe78589d" name="retrieveToken" />
+		<http:request method="GET" doc:name="getEventById" doc:id="2964533d-d076-43bd-94de-c6f4ea9239b9" config-ref="HTTP_Request_conf_googleapis" path="/${calendarData.calendarId}/events/{eventId}" >
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"Cache-Control" : "no-cache",
+	"Authorization" : vars.access_token,
+	"Host" : "www.googleapis.com",
+	"Connection" : "keep-alive"
+}]]]></http:headers>
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"eventId" : vars.eventId
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+	<flow name="events.update" doc:id="f609a394-f455-4d4a-8bb3-d0e5849f0921" >
+		<http:listener doc:name="events.update" doc:id="3fac6c25-d890-4f35-a01a-484f924275e3" config-ref="HTTP_Listener_local_callback_8888" path="/events.update" />
+		<flow-ref doc:name="retrieveToken" doc:id="c9d5bfb5-0129-4401-97eb-1b14873a74cc" name="retrieveToken" />
+		<ee:transform doc:name="create json request body" doc:id="ed3f543a-ec9a-4ded-9e4f-02ce199e9306">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  
+  "start": {
+    "dateTime": payload.dateTimeStart default vars.responsePayload.start.dateTime //"2020-10-03T10:00:00+03:00"
+  },
+  "end": {
+    "dateTime": payload.dateTimeEnd default vars.responsePayload.end.dateTime //"2020-10-03T19:00:00+03:00"
+  },
+  
+  "status": "confirmed",
+  "summary": ( ( ((payload.personMail[0] splitBy("@avenga.com"))[0] splitBy("."))[0] ++ " " ++ ((payload.personMail[0] splitBy("@avenga.com"))[0] splitBy("."))[1] )  ++ " is out of office" ) default vars.responsePayload.summary,
+  "description": ( "Out of the office event for " ++ ( ((payload.personMail[0] splitBy("@avenga.com"))[0] splitBy("."))[0] ++ " " ++ ((payload.personMail[0] splitBy("@avenga.com"))[0] splitBy("."))[1] )  ++ " due to " ++ payload.reason ) default vars.responsePayload.description,
+
+  "attendees": ( (flatten(payload.personMail + payload.supervisorMail + payload.hrMail + payload.teamsMail) filter ($ != null) ) distinctBy $ map {
+         "email": $,
+        "responseStatus": "tentative"
+  } ) default vars.responsePayload.attendees,
+  
+  "visibility": "public",
+  "sequence": 0,
+  "reminders": {
+    "useDefault": false
+  }
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<http:request method="PUT" doc:name="updateEventById" doc:id="9ce66023-5e4b-4142-8542-38abd5b9c978" config-ref="HTTP_Request_conf_googleapis" path="/${calendarData.calendarId}/events/{eventId}">
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Cache-Control" : "no-cache",
+	"Authorization" : vars.access_token,
+	"Host" : "www.googleapis.com",
+	"Connection" : "keep-alive"
+}]]]></http:headers>
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"eventId" : vars.eventId
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+	<flow name="events.create" doc:id="47768460-e69a-4bd7-8919-85c575850383" >
+		<http:listener doc:name="events.create" doc:id="9181a89c-40b5-4107-aa2f-20ef64febbde" config-ref="HTTP_Listener_local_callback_8888" path="/events.create" />
+		<flow-ref doc:name="retrieveToken" doc:id="5264c2e7-5c34-40c4-8e8d-064ea18ed70d" name="retrieveToken" />
+		<set-variable value="#[payload.id]" doc:name="Set external eventId number" doc:id="8ab44990-2d94-41b7-8ff4-7ca54aaad921" variableName="eventId" />
+		<ee:transform doc:name="create json request body" doc:id="aded5ad1-de93-4465-9b27-bde6bc60dc3d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+skipNullOn="everywhere"
+---
+{
+  
+  "start": {
+    "dateTime": payload.dateTimeStart, //"2020-10-03T10:00:00+03:00"
+    "d": p('secure::client_id')
+  },
+  "end": {
+    "dateTime": payload.dateTimeEnd //"2020-10-03T19:00:00+03:00"
+  },
+  
+  "status": "confirmed",
+  "summary": ( ((payload.personMail[0] splitBy("@avenga.com"))[0] splitBy("."))[0] ++ " " ++ ((payload.personMail[0] splitBy("@avenga.com"))[0] splitBy("."))[1] )  ++ " is out of office",
+  "description": "Out of the office event for " ++ ( ((payload.personMail[0] splitBy("@avenga.com"))[0] splitBy("."))[0] ++ " " ++ ((payload.personMail[0] splitBy("@avenga.com"))[0] splitBy("."))[1] )  ++ " due to " ++ payload.reason,
+
+  "attendees": (flatten(payload.personMail + payload.supervisorMail + payload.hrMail + payload.teamsMail) filter ($ != null)) distinctBy $ map {
+         "email": $,
+        "responseStatus": "tentative"
+  },
+  "visibility": "public",
+  "sequence": 0,
+  "reminders": {
+    "useDefault": false
+  }
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<http:request method="POST" doc:name="create event" doc:id="2f7c8014-b045-441b-b50c-04d2d2ec9605" config-ref="HTTP_Request_conf_googleapis" path="/${calendarData.calendarId}/events">
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Cache-Control" : "no-cache",
+	"Authorization" : vars.access_token,
+	"Host" : "www.googleapis.com",
+	"Connection" : "keep-alive"
+}]]]></http:headers>
+		</http:request>
+		<os:store doc:name="Store eventId" doc:id="9e11dc68-e2bd-4e53-b10c-bda0804c4992" key="#[vars.eventId]" failIfPresent="true">
+			<os:value ><![CDATA[#[payload.id]]]></os:value>
+		</os:store>
+	</flow>
+	<flow name="events.delete" doc:id="eb50bc5a-57cd-44df-9d41-0aaa08927fa8">
+		<http:listener doc:name="events.delete" doc:id="ae457d3c-e5b1-4413-8a4c-70ab61678d11" config-ref="HTTP_Listener_local_callback_8888" path="/events.delete" />
+		<flow-ref doc:name="retrieveToken" doc:id="74fa7b55-786f-431a-878d-70efc7c27ad4" name="retrieveToken" />
+		<http:request method="DELETE" doc:name="delete event" doc:id="925fad96-4a6c-4fdf-84b6-8cbdceba503a" config-ref="HTTP_Request_conf_googleapis" path="/${calendarData.calendarId}/events/{eventId}">
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Cache-Control" : "no-cache",
+	"Authorization" : vars.access_token,
+	"Host" : "www.googleapis.com",
+	"Connection" : "keep-alive"
+}]]]></http:headers>
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"eventId" : vars.eventId
+}]]]></http:uri-params>
+		</http:request>
+		<os:remove doc:name="Remove eventId" doc:id="60587655-c11c-4555-8153-483c0761a398" key="#[vars.externalID]"/>
+	</flow>
+</mule>

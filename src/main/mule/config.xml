@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:oauth="http://www.mulesoft.org/schema/mule/oauth"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/oauth http://www.mulesoft.org/schema/mule/oauth/current/mule-oauth.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd">
+	<http:listener-config name="HTTP_Listener_local_callback_8888" doc:name="HTTP Listener config" doc:id="7b46b6d5-bf51-4212-887c-d82318b36187" >
+		<http:listener-connection host="0.0.0.0" port="8888"/>
+	</http:listener-config>
+	<http:listener-config name="HTTP_Listener_callback888" doc:name="HTTP Listener config" doc:id="e0f9fade-4dfb-4a6e-bb52-e785a9d13a37" >
+		<http:listener-connection host="0.0.0.0" port="888" />
+	</http:listener-config>
+	<http:request-config name="HTTP_Request_conf_refreshToken" doc:name="HTTP Request configuration" doc:id="ca3a66af-84dd-45fb-9968-c5efb7d0d19c" >
+		<http:request-connection protocol="HTTPS" host="oauth2.googleapis.com"/>
+	</http:request-config>
+	<http:request-config name="HTTP_Request_conf_oauth" doc:name="HTTP Request configuration" doc:id="a2f6fc07-0936-47c3-bea0-fc5c50793a82">
+		<http:request-connection streamResponse="true">
+			<http:authentication >
+				<oauth:authorization-code-grant-type externalCallbackUrl="http://localhost:888/callback" localAuthorizationUrl="https://localhost:8888/web" authorizationUrl="https://accounts.google.com/o/oauth2/auth" clientId="${oauth2.client_id}" clientSecret="p('secure::oauth2.client_secret')" tokenUrl="https://oauth2.googleapis.com/token" scopes="https://www.googleapis.com/auth/calendar.events" localCallbackConfig="HTTP_Listener_local_callback_8888" localCallbackConfigPath="/callback" refreshTokenWhen="true">
+				</oauth:authorization-code-grant-type>
+			</http:authentication>
+		</http:request-connection>
+	</http:request-config>
+	<configuration-properties doc:name="Configuration properties" doc:id="4db949f2-fa9a-4df2-afb3-e2cb3b73d376" file="google-calendar.${env}.yaml" />
+	<global-property doc:name="Global Property" doc:id="4ab1ed06-41f8-490f-8f7f-67f4c48df3a8" name="env" value="dev" />
+	<http:request-config name="HTTP_Request_conf_googleapis" doc:name="HTTP Request configuration" doc:id="04cde13c-87b0-499c-b838-dad9eeba6186" basePath="/calendar/v3/calendars" >
+		<http:request-connection protocol="HTTPS" host="www.googleapis.com" />
+	</http:request-config>
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="06c73fcc-2650-4e2e-a663-63c45f335ca8" file="google-calendar.${env}.yaml" key="${key}" >
+		<secure-properties:encrypt algorithm="Blowfish" />
+	</secure-properties:config>
+	<global-property doc:name="Global Property" doc:id="eaa57895-b1f8-490b-b746-450822f123ad" name="key" value="key.enc" />
+</mule>
